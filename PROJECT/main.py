@@ -1,7 +1,7 @@
 import slack
 import os
-from pathlib import Path
-from dotenv import load_dotenv #чтобы забрать SLACK_TOKEN из env файла
+# from pathlib import Path
+# from dotenv import load_dotenv #чтобы забрать SLACK_TOKEN из env файла
 from slack_bolt import App
 import datetime
 
@@ -13,15 +13,15 @@ import threading
 import time
 
 
-env_path = Path(".") / ".env" #указываем путь к env файлу
-load_dotenv(dotenv_path=env_path) #загружаем env файл
+# env_path = Path(".") / ".env" #указываем путь к env файлу
+# load_dotenv(dotenv_path=env_path) #загружаем env файл
 
 
 app = App(
-    token=os.environ["SLACK_TOKEN"],
-    signing_secret=os.environ["SIGNING_SECRET"]
+    token="xoxb-3266461516770-3266456316915-p9PBeaPSDFF1mTXyNZzfUEaz",
+    signing_secret="bd15c9c55a788697c30dcf31911770ab"
 )
-client = slack.WebClient(token=os.environ["SLACK_TOKEN"])
+client = slack.WebClient(token="xoxb-3266461516770-3266456316915-p9PBeaPSDFF1mTXyNZzfUEaz")
 
 
 #получаем id команды
@@ -256,9 +256,7 @@ def static_select_rating(ack, body, logger):
             people = myquery["people"] + 1
             newvalues = { "$set": {"day": day, "rating": rating, "people": people} }
             return db["rating"].update_one(myquery, newvalues) #обновляем базу данных
-        else:
-            return update_db("rating", {"day": today, "rating": rating, "people": 1}, False) #обновляем базу данных, обнуляя ее, если настал следующий день
-    return update_db("rating", {"day": today, "rating": 0, "people": 0}, False) #создаем базу данных, если она была пустая
+    return update_db("rating", {"day": today, "rating": rating, "people": 1}, False) #создаем базу данных, если она была пустая или наступил следующий день
 
 
 #шорткат для подключения Jira к боту
@@ -279,16 +277,21 @@ def connect_jira(ack, payload):
 def configure_reactions():
     import my_jira
     statuses = my_jira.miha_test_issue()
-    data = [
-        { "emoji": "white_check_mark", "transition_id": statuses[-1]["transition_id"], "transition_name": statuses[-1]["transition_name"], "transition_value": statuses[-1]["transition_value"]},
-        { "emoji": "eyes", "transition_id": statuses[1]["transition_id"], "transition_name": statuses[1]["transition_name"], "transition_value": statuses[1]["transition_value"]},
-        { "emoji": "exclamation", "transition_id": statuses[0]["transition_id"], "transition_name": statuses[0]["transition_name"], "transition_value": statuses[0]["transition_value"]}
-    ]
+    # data = [
+    #     { "emoji": "white_check_mark", "transition_id": statuses[-1]["transition_id"], "transition_name": statuses[-1]["transition_name"], "transition_value": statuses[-1]["transition_value"]},
+    #     { "emoji": "eyes", "transition_id": statuses[1]["transition_id"], "transition_name": statuses[1]["transition_name"], "transition_value": statuses[1]["transition_value"]},
+    #     { "emoji": "exclamation", "transition_id": statuses[0]["transition_id"], "transition_name": statuses[0]["transition_name"], "transition_value": statuses[0]["transition_value"]}
+    # ]
+    emoji_dict = {"1": "one", "2": "two", "3": "three", "4": "four", "5": "five", "6": "six", "7": "seven", "8": "eight", "9": "nine"}
+    data = [{"emoji": "exclamation", "transition_id": statuses[0]["transition_id"], "transition_name": statuses[0]["transition_name"], "transition_value": statuses[0]["transition_value"]}]
+    for i in range(1, len(statuses) - 1):
+        data.append({"emoji": emoji_dict[str(i)], "transition_id": statuses[i]["transition_id"], "transition_name": statuses[i]["transition_name"], "transition_value": statuses[i]["transition_value"]})
+    data.append({"emoji": "white_check_mark", "transition_id": statuses[-1]["transition_id"], "transition_name": statuses[-1]["transition_name"], "transition_value": statuses[-1]["transition_value"]})
     status_data = {
         "value": 1,
         "status": statuses
     }
-    update_db("reactions", data, True) #создаем коллекцию reactions (эмоджи - статус)
+    update_db("reactions", data, True) #создаем коллекцию reactions (эмодзи - статус)
     update_db("statuses", status_data, False) #создаем коллекцию statuses (id статуса, название статуса, значение статуса)
 
 
@@ -310,7 +313,7 @@ def jira_1(ack, body, view, logger):
         return client.views_open(trigger_id=trigger_id, view=custom_messages.show_result(text=":warning: Wrong Jira domain name or API token.")) #показывает ошибку, если доменное имя или api токен недействительны
 
 
-#view для второго этапа подключения Jira к боту (выбор канала для обработки обращений)
+#view для второго этапа подключения Jira к боту (выбор проекта Jira и канала для обработки обращений)
 @app.view("jira_2")
 def jira_2(ack, body, view, logger):
     ack()
@@ -368,6 +371,7 @@ def jira_3(ack, body, view, logger):
     # user_id = body["user"]["id"]
 
 
+    configure_reactions()
     selected_users = view["state"]["values"]["multi_users_select-action"]["multi_users_select-action"]["selected_users"] #список выбранных пользователей
     all_users = client.users_list()["members"] #список всех пользователей
     newvalues = []
@@ -546,7 +550,7 @@ def reaction_added(payload):
                     time_to_finish = my_jira.get_ticket_time(issue_key)
                     tickets_finished = 1
                     text = "Task " + issue_key + " was done." 
-                    client.chat_postMessage(channel=channel_id, thread_ts=ts, blocks=custom_messages.get_rating_blocks(text))
+                    client.chat_postMessage(channel=f"@{reporter_id}", blocks=custom_messages.get_rating_blocks(text)) #отправка сообщения, в котором запрашивается оценка, пользователю, создавшему тикет
 
 
                 if ticket_was_unread: #если тикет не был изменен до этого момента, происходит сбор статистики

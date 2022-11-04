@@ -96,6 +96,7 @@ def get_all_statuses():
     issue = jira.search_issues(jql)[0]
     transitions = jira.transitions(issue)
     statuses = []
+    indeterminate_statuses = []
     # for transition in transitions:
     #     statuses.append({"transition_id": transition["id"], "transition_name": transition["name"], "transition_value": transition["to"]["statusCategory"]["key"]})
     for transition in transitions:
@@ -103,7 +104,9 @@ def get_all_statuses():
             statuses.append({"transition_id": transition["id"], "transition_name": transition["name"], "transition_value": "new"})
     for transition in transitions:
         if transition["to"]["statusCategory"]["key"] == "indeterminate":
-            statuses.append({"transition_id": transition["id"], "transition_name": transition["name"], "transition_value": "indeterminate"})
+            indeterminate_statuses.append({"transition_id": transition["id"], "transition_name": transition["name"], "transition_value": "indeterminate"})
+    indeterminate_statuses.reverse()
+    statuses.extend(indeterminate_statuses)
     for transition in transitions:
         if transition["to"]["statusCategory"]["key"] == "done":
             statuses.append({"transition_id": transition["id"], "transition_name": transition["name"], "transition_value": "done"})

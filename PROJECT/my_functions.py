@@ -22,11 +22,7 @@ def check_connection(domain, api_token, user_email):
             headers=headers,
             auth=auth
         )
-        # if response.status_code == 404 or response.status_code == 401:
-        #     return False
-        # else:
-        #     return True
-        if response.status_code == 200 and response.json():
+        if response.status_code == 200:
             return True
         else:
             return False
@@ -88,6 +84,7 @@ def get_channel():
 
 #обрезать сообщение пользователя для названия тикета в Jira
 def cut_to_summary(text):
+    text = str(text)
     text_list = text.split()
     # hellos = ["привет", "здравствуй", "hey", "hi", "hello"] #список слов, которые нужно убрать (например: чтобы убрать "привет" в сообщении "привет! ничего не работает")
     # new_text_list = []

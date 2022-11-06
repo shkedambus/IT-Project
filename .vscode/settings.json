@@ -2,5 +2,14 @@
 
 "python.terminal.activateEnvironment": true,
 
-"terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe"
+"terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe",
+"python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "./PROJECT",
+    "-p",
+    "test_*.py"
+],
+"python.testing.pytestEnabled": false,
+"python.testing.unittestEnabled": true
 }

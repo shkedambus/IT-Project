@@ -1,4 +1,11 @@
 #файл для формирования сообщений бота
+from main import TEAM_ID
+from pymongo import MongoClient
+
+
+CONNECTION_STRING = "mongodb+srv://shkedambus:foFtyWYD41DZrZT0@ivr.zbasqqs.mongodb.net/?retryWrites=true&w=majority"
+cluster = MongoClient(CONNECTION_STRING)
+db = cluster[TEAM_ID]
 
 
 #onboarding message
@@ -44,16 +51,6 @@ onboarding_blocks = [
 			]
 		}
 	]
-
-
-import pymongo
-from pymongo import MongoClient
-from main import TEAM_ID
-
-
-CONNECTION_STRING = "mongodb+srv://shkedambus:foFtyWYD41DZrZT0@ivr.zbasqqs.mongodb.net/?retryWrites=true&w=majority"
-cluster = MongoClient(CONNECTION_STRING)
-db = cluster[TEAM_ID]
 
 
 connect_jira_shortcut_1 = {

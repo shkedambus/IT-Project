@@ -1,20 +1,12 @@
-import re
 from datetime import datetime, timedelta
-import requests
-from requests.auth import HTTPBasicAuth
-import json
-from jira import JIRA, Project
-import datetime
-import time
-
-import pymongo
+from jira import JIRA
 from pymongo import MongoClient
 from main import TEAM_ID
-
-import datetime
 import pytz
 
-utc = pytz.UTC #часовой пояс для сравнения времени
+
+#часовой пояс для сравнения времени
+utc = pytz.UTC 
 
 
 #подключение базы данных
@@ -113,6 +105,18 @@ def get_all_statuses():
     return statuses
 
 
+#достать все названия тикетов (для проверки на создание тикетов с одним и тем же названием)
+def get_all_summaries():
+    initialize_jira()
+    summaries = []
+    all_issues = get_all_tickets()
+    for issue in all_issues:
+        ticket = jira.issue(issue)
+        summary = get_ticket_summary(ticket)
+        summaries.append(summary)
+    return summaries
+
+
 #изменить статус тикета
 def change_status(key, status, user):
     initialize_jira()
@@ -191,7 +195,7 @@ def get_unread_tickets():
 #достать тикеты, требующие обновления
 def get_unupdated_tickets(user_id, user_email):
     initialize_jira()
-    today = datetime.datetime.today()
+    today = datetime.today()
 
 
     result = {}
@@ -202,7 +206,7 @@ def get_unupdated_tickets(user_id, user_email):
 
         if fields["resolution"]:
             continue
-        updated = datetime.datetime.strptime(fields["updated"], '%Y-%m-%dT%H:%M:%S.%f%z')
+        updated = datetime.strptime(fields["updated"], '%Y-%m-%dT%H:%M:%S.%f%z')
         hours = db["users"].find_one({"user": user_id})["notification"]
         if utc.localize(today - timedelta(hours=hours)) >= (updated).replace(tzinfo=utc):
             result[str(issue)] = [fields["summary"], fields["description"]]
@@ -212,7 +216,7 @@ def get_unupdated_tickets(user_id, user_email):
 # достать статистику по тикетам
 def get_daily_stats_tickets():
     initialize_jira()
-    today = datetime.datetime.today().date()
+    today = datetime.today().date()
     all_created = 0
     in_progress = 0
     done = 0
@@ -224,19 +228,19 @@ def get_daily_stats_tickets():
         fields = issue.raw["fields"]
 
 
-        created = datetime.datetime.strptime(fields["created"], '%Y-%m-%dT%H:%M:%S.%f%z')
+        created = datetime.strptime(fields["created"], '%Y-%m-%dT%H:%M:%S.%f%z')
         if created.date() == today:
             all_created += 1
 
 
         if fields["resolution"]: #если тикет был закрыт
-            resolution_date = datetime.datetime.strptime(fields["resolutiondate"], '%Y-%m-%dT%H:%M:%S.%f%z').date()
+            resolution_date = datetime.strptime(fields["resolutiondate"], '%Y-%m-%dT%H:%M:%S.%f%z').date()
             if resolution_date == today:
                 done += 1
                 continue
         
 
-        updated = datetime.datetime.strptime(fields["updated"], '%Y-%m-%dT%H:%M:%S.%f%z')
+        updated = datetime.strptime(fields["updated"], '%Y-%m-%dT%H:%M:%S.%f%z')
         if updated.date() == today:
             if updated != created:
                 in_progress += 1
@@ -252,8 +256,8 @@ def if_ticket_unread(ticket):
     initialize_jira()
     issue = jira.issue(ticket)
     fields = issue.raw["fields"]
-    created = datetime.datetime.strptime(fields["created"], '%Y-%m-%dT%H:%M:%S.%f%z')
-    updated = datetime.datetime.strptime(fields["updated"], '%Y-%m-%dT%H:%M:%S.%f%z')
+    created = datetime.strptime(fields["created"], '%Y-%m-%dT%H:%M:%S.%f%z')
+    updated = datetime.strptime(fields["updated"], '%Y-%m-%dT%H:%M:%S.%f%z')
     return created == updated
 
 
@@ -262,6 +266,6 @@ def get_ticket_time(ticket):
     initialize_jira()
     issue = jira.issue(ticket)
     fields = issue.raw["fields"]
-    created = datetime.datetime.strptime(fields["created"], '%Y-%m-%dT%H:%M:%S.%f%z')
-    updated = datetime.datetime.strptime(fields["updated"], '%Y-%m-%dT%H:%M:%S.%f%z')
+    created = datetime.strptime(fields["created"], '%Y-%m-%dT%H:%M:%S.%f%z')
+    updated = datetime.strptime(fields["updated"], '%Y-%m-%dT%H:%M:%S.%f%z')
     return int((updated - created).total_seconds())

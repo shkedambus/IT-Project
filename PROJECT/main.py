@@ -6,25 +6,27 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 from pymongo import MongoClient
 
-# from pathlib import Path
-# from dotenv import load_dotenv #чтобы забрать SLACK_TOKEN из env файла
-# env_path = Path(".") / ".env" #указываем путь к env файлу
-# load_dotenv(dotenv_path=env_path) #загружаем env файл
+from pathlib import Path
+from dotenv import load_dotenv #чтобы забрать SLACK_TOKEN из env файла
+
+
+env_path = Path(".") / ".env" #указываем путь к env файлу
+load_dotenv(dotenv_path=env_path) #загружаем env файл
 
 
 logging.basicConfig(level=logging.DEBUG)
 
-BOT_TOKEN = "xoxb-3266461516770-3266456316915-V9eaBB8QvbmdFPpyJIEGlUvd"
+BOT_TOKEN = os.environ["BOT_TOKEN"]
 if not BOT_TOKEN:
     logging.error("Bot token not found in env vars")
     exit(1)
 
-SIGNING_SECRET = "bd15c9c55a788697c30dcf31911770ab"
+SIGNING_SECRET = os.environ["SIGNING_SECRET"]
 if not SIGNING_SECRET:
     logging.error("Signing secret not found in env vars")
     exit(1)
 
-APP_TOKEN = "xapp-1-A037DRCS04F-4341391316097-35086610d583f92c77b0ee1e07f08939b1f9f1af2d852e6cc788ac899a6ba7e0"
+APP_TOKEN = os.environ["APP_TOKEN"]
 if not APP_TOKEN:
     logging.error("App token not found in env vars")
     exit(1)

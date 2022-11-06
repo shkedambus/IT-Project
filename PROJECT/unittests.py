@@ -13,33 +13,7 @@ import unittest
 
 class TestMyFunctions(unittest.TestCase):
 
-    def test_1(self): #подключение к Jira с действительными данными
-        user_email = "donskoydmv@gmail.com"
-        domain = "mmrfarm"
-        api_token = "VNV84T2cHYKtyJS4xu6RC292"
-        result = my_functions.check_connection(domain=domain, api_token=api_token, user_email=user_email)
-        self.assertTrue(result)
 
-    def test_2(self): #подключение к Jira с недействительным API токеном
-        user_email = "donskoydmv@gmail.com"
-        domain = "mmrfarm"
-        api_token = "1234567890"
-        result = my_functions.check_connection(domain=domain, api_token=api_token, user_email=user_email)
-        self.assertFalse(result)
-
-    def test_3(self): #подключение к Jira с недействительным доменом
-        user_email = "donskoydmv@gmail.com"
-        domain = "1234567890"
-        api_token = "VNV84T2cHYKtyJS4xu6RC292"
-        result = my_functions.check_connection(domain=domain, api_token=api_token, user_email=user_email)
-        self.assertFalse(result)
-
-    def test_4(self): #подключение к Jira с недействительной электронной почтой
-        user_email = "1234567890"
-        domain = "mmrfarm"
-        api_token = "VNV84T2cHYKtyJS4xu6RC292"
-        result = my_functions.check_connection(domain=domain, api_token=api_token, user_email=user_email)
-        self.assertFalse(result)
 
     def test_5(self): #автоматическое создание тикета Jira в Slack на сообщение пользователя в канале для обработки обращений
         jira_issues_count_old = len(my_jira.get_all_tickets())

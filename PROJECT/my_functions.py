@@ -1,9 +1,9 @@
 import custom_messages
 import my_db
-import threading
 from datetime import datetime
 import time
 import requests
+from slack_client import get_client
 
 
 #проверить домена и api токен Jira
@@ -61,8 +61,7 @@ def check_permission(user_id):
 
 #найти id пользователя по его имени
 def find_user_by_name(user_name):
-    from main import client
-    users = client.users_list()
+    users = get_client().users_list()
     for user in users["members"]:
         if user["name"] == user_name:
             return user["id"] #возвращает id пользователя
@@ -70,9 +69,8 @@ def find_user_by_name(user_name):
 
 #достать канал, в котором есть бот
 def get_channel():
-    from main import client
     channel_id = None
-    for result in client.conversations_list():
+    for result in get_client().conversations_list():
         if channel_id is not None:
             break
         for channel in result["channels"]:
@@ -104,7 +102,6 @@ def cut_to_summary(text):
 
 #отправить статистику за день каждый день в 20:00
 def send_daily_stats():
-    from main import client
     send_time = datetime.strptime("20:00:00", "%H:%M:%S")
     while True:
         current_time = datetime.strptime(datetime.today().strftime("%H:%M:%S"), "%H:%M:%S")
@@ -115,7 +112,7 @@ def send_daily_stats():
             time_to_start = my_db.get_time_to_start()
             time_to_finish = my_db.get_time_to_finish()
             rating = my_db.get_rating()
-            client.chat_postMessage(channel=channel_id,
+            get_client().chat_postMessage(channel=channel_id,
                                     blocks=custom_messages.get_stats_blocks(created=str(result[0]), 
                                                                             in_progress=str(result[1]),
                                                                             done=str(result[2]), 
@@ -126,27 +123,25 @@ def send_daily_stats():
             # time.sleep(86399)
         else:
             time.sleep(abs((send_time - current_time).total_seconds()))
-long_thread = threading.Thread(target=send_daily_stats) #запуск ядра, которое будет ежедневно отправлять статистику по обработке тикетов Jira
+
 
 
 #расписать пользователю про реакции и соответствующии им статусы Jira
 def user_reactions(user_id, select_emoji=False):
-    from main import client
     blocks = custom_messages.emoji_and_their_statuses(select_emoji)
-    client.chat_postMessage(channel=f"@{user_id}", blocks=blocks) #вывод сообщения (эмодзи - статус)
+    get_client().chat_postMessage(channel=f"@{user_id}", blocks=blocks) #вывод сообщения (эмодзи - статус)
 
 
 #уведомить пользователя об изменении статуса тикета Jira
 def notify_reporter(reporter_id, assignee_id, issue_key, old_status, new_status):
-    from main import client
     import my_jira
     issue_summary = my_jira.get_ticket_summary(issue_key)
 
 
-    assignee_name = client.users_info(user=assignee_id)["user"]["name"]
+    assignee_name = get_client().users_info(user=assignee_id)["user"]["name"]
     
     if assignee_id != reporter_id:
-        return client.chat_postMessage(channel=f"@{reporter_id}", 
+        return get_client().chat_postMessage(channel=f"@{reporter_id}", 
                                     blocks=custom_messages.get_notification_blocks(issue_key=issue_key, issue_summary=issue_summary, old_status=old_status, new_status=new_status, user_id=assignee_id, user_name=assignee_name))
     #отправляем пользователю, создавшему тикет Jira, уведомление об изменении его статуса (тикет [тикет] был изменен [пользователь], старый статус: [старый статус], новый статус: [новый статус])
 

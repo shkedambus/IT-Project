@@ -1,11 +1,6 @@
 #файл для формирования сообщений бота
-from main import TEAM_ID
-from pymongo import MongoClient
-
-
-CONNECTION_STRING = "mongodb+srv://shkedambus:foFtyWYD41DZrZT0@ivr.zbasqqs.mongodb.net/?retryWrites=true&w=majority"
-cluster = MongoClient(CONNECTION_STRING)
-db = cluster[TEAM_ID]
+from my_db import db
+from slack_client import get_client
 
 
 #onboarding message
@@ -257,7 +252,7 @@ def emoji_and_their_statuses(select_emoji=False):
 		        }]
 
 
-    collection_reactions = db["reactions"]
+    collection_reactions = db.get_db()["reactions"]
     data = collection_reactions.find()
     for transition_dict in data:
         key = transition_dict["emoji"]
@@ -310,10 +305,7 @@ jira_not_connected = [
             ]
 
 
-def get_info_blocks(url, project, users, user_id):
-    from main import TEAM_ID
-
-
+def get_info_blocks(url, project, users, user_id, team_id):
     url_text = "Projects from site " + f"*<{url}|{url}>*"
     jira_connected = [
                     {
@@ -354,7 +346,7 @@ def get_info_blocks(url, project, users, user_id):
                     })
         fields = []
         for user in users:
-            text_user = f"*<slack://user?team={TEAM_ID}&amp;id={user[0]}|@" + user[1] + ">*"
+            text_user = f"*<slack://user?team={team_id}&amp;id={user[0]}|@" + user[1] + ">*"
             fields.append({
 					"type": "mrkdwn",
 					"text": text_user
@@ -400,7 +392,7 @@ def get_info_blocks(url, project, users, user_id):
     jira_connected.extend(emoji_blocks)
 
 
-    hours = str(db["users"].find_one({"user": user_id})["notification"])
+    hours = str(db.get_db()["users"].find_one({"user": user_id})["notification"])
     text_hours = "*Time period after which Jira issues should be updated - " + hours + " hours*"
     jira_connected.append({"type": "section",
                                 "text": {
@@ -479,14 +471,15 @@ def get_rating_blocks(text):
 
 
 def get_notification_blocks(issue_key, issue_summary, old_status, new_status, user_id, user_name):
-    collection_jira = db["jira"]
+    team_id = get_client().api_call("auth.test")["team_id"]
+    collection_jira = db.get_db()["jira"]
     domain = collection_jira.find_one()["domain"]
 
 
     text_issue_key = "*Issue:*\n" + f"*<https://{domain}.atlassian.net/browse/{issue_key}|{issue_key} {issue_summary}>*"
     text_old_status = "*Old status:*\n" + old_status
     text_new_status = "*New status:*\n" + new_status
-    text_user = "*User:*\n" + f"*<slack://user?team={TEAM_ID}&amp;id={user_id}|@" + str(user_name) + ">*"
+    text_user = "*User:*\n" + f"*<slack://user?team={team_id}&amp;id={user_id}|@" + str(user_name) + ">*"
     blocks = [
                 {
                     "type": "section",
@@ -527,11 +520,11 @@ def get_notification_blocks(issue_key, issue_summary, old_status, new_status, us
 
 
 def get_created_ticket_blocks(issue_key, issue_summary, reporter_id, reporter_name, assignee, current_status):
-    collection_jira = db["jira"]
+    collection_jira = db.get_db()["jira"]
     domain = collection_jira.find_one()["domain"]
 
-
-    main_text = f"*<slack://user?team={TEAM_ID}&amp;id={reporter_id}|@" + reporter_name + ">*" + ' created a Task\n' + f"*<https://{domain}.atlassian.net/browse/{issue_key}|{issue_key} {issue_summary}>*"
+    team_id = get_client().api_call("auth.test")["team_id"]
+    main_text = f"*<slack://user?team={team_id}&amp;id={reporter_id}|@" + reporter_name + ">*" + ' created a Task\n' + f"*<https://{domain}.atlassian.net/browse/{issue_key}|{issue_key} {issue_summary}>*"
     context_text = "Status: " + current_status + " | " + "Assignee: " + assignee + " | " + "Reporter: " + reporter_name
     blocks = [
                 {
@@ -556,7 +549,7 @@ def get_created_ticket_blocks(issue_key, issue_summary, reporter_id, reporter_na
 
 
 def get_unread_ticket_blocks(issue_key, issue_summary):
-    collection_jira = db["jira"]
+    collection_jira = db.get_db()["jira"]
     domain = collection_jira.find_one()["domain"]
 
 

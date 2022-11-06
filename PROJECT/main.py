@@ -1,86 +1,45 @@
-import os
 import logging
-import slack_sdk as slack
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
-from pymongo import MongoClient
+import threading
+from my_functions import send_daily_stats
 
-from pathlib import Path
-from dotenv import load_dotenv #чтобы забрать SLACK_TOKEN из env файла
+from my_db import db
+from slack_client import get_client
 
-
-env_path = Path(".") / ".env" #указываем путь к env файлу
-load_dotenv(dotenv_path=env_path) #загружаем env файл
+import slack_actions, slack_commands, slack_events, slack_shortcuts, slack_views
+from config import Config
 
 
 logging.basicConfig(level=logging.DEBUG)
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-if not BOT_TOKEN:
-    logging.error("Bot token not found in env vars")
-    exit(1)
+config = Config()
 
-SIGNING_SECRET = os.environ["SIGNING_SECRET"]
-if not SIGNING_SECRET:
-    logging.error("Signing secret not found in env vars")
-    exit(1)
+BOT_TOKEN = config.get_bot_token()
+SIGNING_SECRET = config.get_sign_secret()
+APP_TOKEN = config.get_app_token()
 
-APP_TOKEN = os.environ["APP_TOKEN"]
-if not APP_TOKEN:
-    logging.error("App token not found in env vars")
-    exit(1)
-
+logging.debug("tokens: ", BOT_TOKEN, SIGNING_SECRET, APP_TOKEN)
 
 app = App(
     token=BOT_TOKEN,
     signing_secret=SIGNING_SECRET
 )
-client = slack.WebClient(token=BOT_TOKEN)
+client = get_client()
 
 
-#получаем id команды
-TEAM_ID = client.api_call("auth.test")["team_id"]
 
 
-#подключаем базу данных
-CONNECTION_STRING = "mongodb+srv://shkedambus:foFtyWYD41DZrZT0@ivr.zbasqqs.mongodb.net/?retryWrites=true&w=majority"
-cluster = MongoClient(CONNECTION_STRING)
-db = cluster[TEAM_ID]
-
-
-#получаем id бота и Jira, формируем коллекцию users
-def on_start():
-    if "id" not in db.list_collection_names():
-        BOT_ID = client.api_call("auth.test")["user_id"]
-        JIRA_ID = ""
-        all_users = client.users_list()
-        for member in all_users["members"]:
-            if member["is_bot"] and member["real_name"] == "Jira":
-                JIRA_ID = member["id"]
-        db["id"].insert_one({"bot_id": BOT_ID, "jira_id": JIRA_ID})
-    else:
-        myquery = db["id"].find_one()
-        BOT_ID = myquery["bot_id"]
-        JIRA_ID = myquery["jira_id"]
-
-
-    if "users" not in db.list_collection_names():
+def form_user_collection():
+    if "users" not in db.get_db().list_collection_names():
         support_team = []
         all_users = client.users_list()
         for member in all_users["members"]:
             if not member["is_bot"] and member["id"] != "USLACKBOT":
                 support_team.append({"user": member["id"], "email": member["profile"]["email"], "notification": 24, "has_permission": False})
-        db["users"].insert_many(support_team)
-    
+        db.get_db()["users"].insert_many(support_team)
 
-    return {"bot_id": BOT_ID, "jira_id": JIRA_ID} #возвращает словарь, содержащий id бота и id Jira (если есть)
-result = on_start()
-BOT_ID = result["bot_id"]
-JIRA_ID = result["jira_id"]
-
-
-import slack_actions, slack_commands, slack_events, slack_shortcuts, slack_views
 
 #shortcuts
 @app.shortcut("connect_jira")
@@ -192,7 +151,10 @@ def test_message(message):
 
 
 if __name__ == "__main__":
-    from my_functions import long_thread
+
+    form_user_collection()
+
+    long_thread = threading.Thread(target=send_daily_stats) #запуск ядра, которое будет ежедневно отправлять статистику по обработке тикетов Jira
     long_thread.start()
     #app.start(port=int(os.environ.get("PORT", 8000)))
     handler = SocketModeHandler(app, APP_TOKEN)

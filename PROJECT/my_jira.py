@@ -1,18 +1,11 @@
 from datetime import datetime, timedelta
 from jira import JIRA
-from pymongo import MongoClient
-from main import TEAM_ID
 import pytz
+from my_db import db
 
 
 #часовой пояс для сравнения времени
 utc = pytz.UTC 
-
-
-#подключение базы данных
-CONNECTION_STRING = "mongodb+srv://shkedambus:foFtyWYD41DZrZT0@ivr.zbasqqs.mongodb.net/?retryWrites=true&w=majority"
-cluster = MongoClient(CONNECTION_STRING)
-db = cluster[TEAM_ID]
 
 
 #для Jira
@@ -23,7 +16,7 @@ jql = None
 
 #проверить пользователя на право изменения тикета
 def check_permission(user_email):
-    return db["users"].find_one({"email": user_email})["has_permission"]
+    return db.get_db()["users"].find_one({"email": user_email})["has_permission"]
 
 
 #достать все проекты в Jira
@@ -36,7 +29,7 @@ def get_all_projects(domain, api_token, user_email):
 
 #подключить Jira
 def initialize_jira():
-    myquery = db["jira"].find_one()
+    myquery = db.get_db()["jira"].find_one()
     domain = myquery["domain"]
     api_key = myquery["api_key"]
     email = myquery["email"]
@@ -54,7 +47,7 @@ def initialize_jira():
 def create_ticket(summary, description=""):
     initialize_jira()
     issue_dict = {
-        'project': db["jira"].find_one()["project"],
+        'project': db.get_db()["jira"].find_one()["project"],
         'summary': summary,  
         'description': description,
         'issuetype': {'name': 'Task'}
@@ -207,7 +200,7 @@ def get_unupdated_tickets(user_id, user_email):
         if fields["resolution"]:
             continue
         updated = datetime.strptime(fields["updated"], '%Y-%m-%dT%H:%M:%S.%f%z')
-        hours = db["users"].find_one({"user": user_id})["notification"]
+        hours = db.get_db()["users"].find_one({"user": user_id})["notification"]
         if utc.localize(today - timedelta(hours=hours)) >= (updated).replace(tzinfo=utc):
             result[str(issue)] = [fields["summary"], fields["description"]]
     return result

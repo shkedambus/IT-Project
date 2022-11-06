@@ -1,8 +1,26 @@
-from main import client, TEAM_ID, BOT_ID, JIRA_ID, db, cluster
+from slack_client import get_client, get_bot_id
 import custom_messages
 import my_functions
 from datetime import datetime
+from my_db import db
 
+
+#получаем id бота и Jira
+def get_bot_jira_id():
+    if "id" not in db.get_db().list_collection_names():
+        bot_id = get_bot_id()
+        jira_id = ""
+        all_users = get_client().users_list()
+        for member in all_users["members"]:
+            if member["is_bot"] and member["real_name"] == "Jira":
+                jira_id = member["id"]
+        db.get_db()["id"].insert_one({"bot_id": bot_id, "jira_id": jira_id})
+    else:
+        myquery = db.get_db()["id"].find_one()
+        bot_id = myquery["bot_id"]
+        jira_id = myquery["jira_id"]
+
+    return {"bot_id": bot_id, "jira_id": jira_id} #возвращает словарь, содержащий id бота и id Jira (если есть)
 
 #ивент - отправлено сообщение
 def message(payload):
@@ -10,15 +28,17 @@ def message(payload):
         import my_jira
         #получение данных о сообщении (канал, пользователь, содержание, время)
         channel_id = payload["channel"]
-        is_im = client.conversations_info(channel=channel_id)["channel"]["is_im"]
+        is_im = get_client().conversations_info(channel=channel_id)["channel"]["is_im"]
         user_id = payload["user"]
         text = payload["text"]
         ts = payload["ts"]
 
-
-        if user_id != BOT_ID and user_id != None and user_id != JIRA_ID and user_id != "USLACKBOT" and not is_im: #если сообщение было отправлено в общий канал не ботом и не Jira
+        result = get_bot_jira_id()
+        bot_id = result["bot_id"]
+        jira_id = result["jira_id"]
+        if user_id != bot_id and user_id != None and user_id != jira_id and user_id != "USLACKBOT" and not is_im: #если сообщение было отправлено в общий канал не ботом и не Jira
             issue_summary = my_functions.cut_to_summary(text) #формирование названия тикета
-            user_name = client.users_info(user=user_id)["user"]["name"] #получение имени пользователя, создавшего тикет
+            user_name = get_client().users_info(user=user_id)["user"]["name"] #получение имени пользователя, создавшего тикет
             description = user_name + ": " + text #формирование описания тикета
 
             summaries = my_jira.get_all_summaries()
@@ -36,11 +56,11 @@ def message(payload):
 
 
                 #вывод сообщения о создании тикета
-                return client.chat_postMessage(channel=channel_id, thread_ts=ts,
+                return get_client().chat_postMessage(channel=channel_id, thread_ts=ts,
                                                 blocks=custom_messages.get_created_ticket_blocks(issue_key=issue_key, issue_summary=issue_summary, reporter_id=user_id, reporter_name=user_name, assignee=assignee, current_status=current_status))
             else:
                 #тикет уже существует
-                return client.chat_postMessage(channel=f"@{user_id}", text="Such Jira issue already exists")
+                return get_client().chat_postMessage(channel=f"@{user_id}", text="Such Jira issue already exists")
 
 
 #ивент - добавлена реакция на сообщение
@@ -49,14 +69,14 @@ def reaction_added(payload):
     message_user_id = payload["item_user"]
     reaction_user_id = payload["user"]
     channel_id = payload["item"]["channel"]
-    is_im = client.conversations_info(channel=channel_id)["channel"]["is_im"]
+    is_im = get_client().conversations_info(channel=channel_id)["channel"]["is_im"]
     ts = payload["item"]["ts"]
     reaction = payload["reaction"]  
 
 
     try:
         #получаем сообщение, на которое поставили реакцию
-        message = client.conversations_history(
+        message = get_client().conversations_history(
             channel=channel_id,
             inclusive=True,
             oldest=ts,
@@ -67,12 +87,13 @@ def reaction_added(payload):
         if my_functions.jira_connected() and my_functions.check_permission(reaction_user_id) and collection_reactions.find({"emoji": reaction}): #если Jira подключена, пользователь обладает правами по изменению статуса тикета Jira и его реакция соответствует какому-либо статусу тикета Jira
             import my_jira
             #если это сообщение самого пользователя в канале
-            if message_user_id != BOT_ID and not is_im:
+            bot_id = get_bot_id()
+            if message_user_id != bot_id and not is_im:
                 issue_summary = my_functions.cut_to_summary(message["text"])
                 issue_key = str(my_jira.search_ticket(issue_summary))
                 reporter_id=message_user_id
             #если это сообщение бота в личных сообщениях
-            elif message_user_id == BOT_ID and is_im:
+            elif message_user_id == bot_id and is_im:
                 issue_key = message["blocks"][0]["block_id"]
                 reporter_name = message["blocks"][0]["text"]["text"].split("|")[1].split()[1][:-1]
                 reporter_id = my_functions.find_user_by_name(reporter_name)
@@ -96,7 +117,7 @@ def reaction_added(payload):
 
             current_status = my_jira.get_ticket_status(issue_key) #получение текущего статуса тикета
             if current_status != str(transition_id): #если тикету был присвоен новый статус
-                user = client.users_info(user=reaction_user_id)["user"]["profile"]["email"]
+                user = get_client().users_info(user=reaction_user_id)["user"]["profile"]["email"]
 
                 
                 old_status = my_jira.get_ticket_status(key=issue_key, field="name")
@@ -109,7 +130,7 @@ def reaction_added(payload):
                     time_to_finish = my_jira.get_ticket_time(issue_key)
                     tickets_finished = 1
                     text = "Task " + issue_key + " was done." 
-                    client.chat_postMessage(channel=f"@{reporter_id}", blocks=custom_messages.get_rating_blocks(text)) #отправка сообщения, в котором запрашивается оценка, пользователю, создавшему тикет
+                    get_client().chat_postMessage(channel=f"@{reporter_id}", blocks=custom_messages.get_rating_blocks(text)) #отправка сообщения, в котором запрашивается оценка, пользователю, создавшему тикет
 
 
                 if ticket_was_unread: #если тикет не был изменен до этого момента, происходит сбор статистики
@@ -149,7 +170,7 @@ def app_home_opened(payload):
     update_blocks = []
     if my_functions.check_permission(user_id): #если пользователь обладает правами на изменения статуса тикета Jira
         import my_jira
-        user_email = client.users_info(user=user_id)["user"]["profile"]["email"]
+        user_email = get_client().users_info(user=user_id)["user"]["profile"]["email"]
         result_dict = my_jira.get_unupdated_tickets(user_id, user_email) #получение тикетов, требующих обновления
         if result_dict:
             #формирование блоков для вывода бота
@@ -174,11 +195,12 @@ def app_home_opened(payload):
                                 })
 
 
-    return client.views_publish(user_id=user_id, view=custom_messages.get_app_home_view(update_blocks)) #вывод полученной информации на вкладке
+    return get_client().views_publish(user_id=user_id, view=custom_messages.get_app_home_view(update_blocks)) #вывод полученной информации на вкладке
 
 
 #ивент - бот был удален пользователем
 def app_uninstalled(payload):
     #удаление данных из базы для этого рабочего пространства
-    cluster.drop_database(TEAM_ID)
+    team_id = get_client().api_call("auth.test")["team_id"]
+    db.get_cluster().drop_database(team_id)
     # cluster["access_tokens"].drop_collection(TEAM_ID)

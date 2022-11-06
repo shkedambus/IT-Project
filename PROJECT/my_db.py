@@ -1,10 +1,33 @@
 from datetime import datetime
+from pymongo import MongoClient
+from slack_client import get_client
 
+class MyDB:
+    db = None
+    cluster = None
+
+    def get_cluster(self):
+        if self.cluster:
+            return self.cluster
+
+        CONNECTION_STRING = "mongodb+srv://shkedambus:foFtyWYD41DZrZT0@ivr.zbasqqs.mongodb.net/?retryWrites=true&w=majority"
+        self.cluster = MongoClient(CONNECTION_STRING)
+        return self.cluster
+
+    def get_db(self):
+        if self.db:
+            return self.db
+        
+        team_id = get_client().api_call("auth.test")["team_id"]
+        self.db = self.get_cluster()[team_id]
+        return self.db
+
+
+db = MyDB()
 
 #достать данные из бд и посчитать среднее время до взятия тикета Jira в работу
 def get_time_to_start():
-    from main import db
-    myquery = db["time"].find_one()
+    myquery = db.get_db()["time"].find_one()
     result = 0
     if myquery:
         today = str(datetime.today().date())
@@ -16,8 +39,7 @@ def get_time_to_start():
 
 #достать данные из бд и посчитать среднее время до закрытия тикета Jira
 def get_time_to_finish():
-    from main import db
-    myquery = db["time"].find_one()
+    myquery = db.get_db()["time"].find_one()
     result = 0
     if myquery:
         today = str(datetime.today().date())
@@ -29,8 +51,7 @@ def get_time_to_finish():
 
 #достать данные из бд и посчитать среднюю оценку удовлетворенности пользователя работой над тикетом Jira
 def get_rating():
-    from main import db
-    myquery = db["rating"].find_one()
+    myquery = db.get_db()["rating"].find_one()
     result = 0
     if myquery:
         today = str(datetime.today().date())
@@ -42,8 +63,7 @@ def get_rating():
 
 #обновить базу данных
 def update_db(collection_name, data, many):
-    from main import db
-    collection = db[collection_name]
+    collection = db.get_db()[collection_name]
     myquery = collection.find_one()
     if myquery:
         collection.drop()

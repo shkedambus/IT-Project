@@ -1,13 +1,16 @@
-import slack
+import logging
+import slack_sdk as slack
 import os
 # from pathlib import Path
 # from dotenv import load_dotenv #чтобы забрать SLACK_TOKEN из env файла
 from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
+
 import datetime
 
 from pymongo import MongoClient
 
-import custom_messages #файл с различными выводами бота
+#import custom_messages #файл с различными выводами бота
 
 import threading
 import time
@@ -16,12 +19,28 @@ import time
 # env_path = Path(".") / ".env" #указываем путь к env файлу
 # load_dotenv(dotenv_path=env_path) #загружаем env файл
 
+logging.basicConfig(level=logging.DEBUG)
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+if not BOT_TOKEN:
+    logging.error("Bot token not found in env vars")
+    exit(1)
+
+SIGNING_SECRET = os.getenv("SIGNING_SECRET")
+if not SIGNING_SECRET:
+    logging.error("Signing secret not found in env vars")
+    exit(1)
+
+APP_TOKEN = os.getenv("APP_TOKEN")
+if not APP_TOKEN:
+    logging.error("App token not found in env vars")
+    exit(1)
 
 app = App(
-    token="xoxb-3266461516770-3266456316915-p9PBeaPSDFF1mTXyNZzfUEaz",
-    signing_secret="bd15c9c55a788697c30dcf31911770ab"
+    token=BOT_TOKEN,
+    signing_secret=SIGNING_SECRET
 )
-client = slack.WebClient(token="xoxb-3266461516770-3266456316915-p9PBeaPSDFF1mTXyNZzfUEaz")
+client = slack.WebClient(token=BOT_TOKEN)
 
 
 #получаем id команды
@@ -75,9 +94,9 @@ def on_start():
     return {"bot_id": BOT_ID, "jira_id": JIRA_ID} #возвращает словарь, содержащий id бота и id Jira (если есть)
 
 
-result = on_start()
-BOT_ID = result["bot_id"]
-JIRA_ID = result["jira_id"]
+##result = on_start()
+#BOT_ID = result["bot_id"]
+#JIRA_ID = result["jira_id"]
 
 
 #найти id пользователя по его имени
@@ -765,6 +784,13 @@ def multi_users_select_action(ack, body, logger):
     return
 
 
+@app.message("message")
+def test_message(message):
+    logging.error("Got a message")
+    return
+
 if __name__ == "__main__":
     long_thread.start()
-    app.start(port=int(os.environ.get("PORT", 3000)))
+    #app.start(port=int(os.environ.get("PORT", 8000)))
+    handler = SocketModeHandler(app, APP_TOKEN)
+    handler.start()

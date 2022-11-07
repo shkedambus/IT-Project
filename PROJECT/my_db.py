@@ -1,7 +1,16 @@
+import os
 from datetime import datetime
 from pymongo import MongoClient
 from slack_client import get_client
+from pathlib import Path
+from dotenv import load_dotenv #чтобы забрать SLACK_TOKEN из env файла
 
+
+env_path = Path(".") / ".env" #указываем путь к env файлу
+load_dotenv(dotenv_path=env_path) #загружаем env файл
+
+
+#подключение к базе данных
 class MyDB:
     db = None
     cluster = None
@@ -11,6 +20,7 @@ class MyDB:
             return self.cluster
 
         CONNECTION_STRING = "mongodb+srv://shkedambus:foFtyWYD41DZrZT0@ivr.zbasqqs.mongodb.net/?retryWrites=true&w=majority"
+        # CONNECTION_STRING = os.environ["CONNECTION_STRING"]
         self.cluster = MongoClient(CONNECTION_STRING)
         return self.cluster
 
@@ -19,11 +29,13 @@ class MyDB:
             return self.db
         
         team_id = get_client().api_call("auth.test")["team_id"]
+        
         self.db = self.get_cluster()[team_id]
         return self.db
 
 
 db = MyDB()
+
 
 #достать данные из бд и посчитать среднее время до взятия тикета Jira в работу
 def get_time_to_start():
@@ -67,7 +79,7 @@ def update_db(collection_name, data, many):
     myquery = collection.find_one()
     if myquery:
         collection.drop()
-        collection = db[collection_name]
+        collection = db.get_db()[collection_name]
         if many:
             collection.insert_many(data)
         else:

@@ -5,7 +5,7 @@ from my_db import db, get_rating, get_time_to_finish, get_time_to_start
 
 
 def info(ack, command):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     user_id = command["user_id"]
     if my_functions.jira_connected(): #если Jira подключена
         myquery = db.get_db()["jira"].find_one()
@@ -14,7 +14,7 @@ def info(ack, command):
         url = "https://" + domain + ".atlassian.net"
         
         #получение информации о пользователях, обладающих правом на изменения статуса тикета Jira и формирование блоков для вывода бота
-        user_ids = db["users"].find({"has_permission": True}).distinct("user")
+        user_ids = db.get_db()["users"].find({"has_permission": True}).distinct("user")
         users = []
         if user_ids:   
             for user_id in user_ids:
@@ -28,14 +28,14 @@ def info(ack, command):
 
 #комманда /commands для вывода всех существующих комманд бота
 def commands(ack, command):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     user_id = command["user_id"]
     return get_client().chat_postMessage(channel=f"@{user_id}", blocks=custom_messages.commands_blocks)
 
 
 #комманда /unread-issues для получения непрочитанных тикетов
 def unread_issues(ack, command):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     user_id = command["user_id"]
     if my_functions.jira_connected(): #если Jira подключена
         import my_jira
@@ -54,7 +54,7 @@ def unread_issues(ack, command):
 
 #комманда /update-issues для получения тикетов, требующих обновления
 def update_issues(ack, command):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     user_id = command["user_id"]
     if my_functions.jira_connected(): #если Jira подключена
         import my_jira
@@ -74,7 +74,7 @@ def update_issues(ack, command):
 
 #комманда /daily-stats для получения ежедневной статистики по обработанным обращениям
 def daily_stats(ack, command):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     user_id = command["user_id"]
     if my_functions.jira_connected(): #если Jira подключена
         import my_jira
@@ -91,6 +91,6 @@ def daily_stats(ack, command):
 
 #комманда /select-time для выбора промежутка времени, после которого тикеты будут требовать обновления
 def select_time_command(ack, command):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     trigger_id = command["trigger_id"]
     return get_client().views_open(trigger_id=trigger_id, view=custom_messages.select_time_view) #запускается view для выбора промежутка времени

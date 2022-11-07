@@ -6,7 +6,7 @@ import my_functions
 
 #шорткат для подключения Jira к боту
 def connect_jira(ack, payload):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     user_id = payload["user"]["id"]
     trigger_id=payload["trigger_id"]
     if get_client().users_info(user=user_id)["user"]["is_admin"]:
@@ -19,7 +19,7 @@ def connect_jira(ack, payload):
 
 #шорткат для раздачи прав на изменение статуса тикета Jira выбранным пользователям
 def sup_users(ack, payload):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     user_id = payload["user"]["id"]
     trigger_id = payload["trigger_id"]
     if my_functions.jira_connected():
@@ -37,7 +37,7 @@ def sup_users(ack, payload):
 
 #шорткат для выбора своих эмодзи для статусов тикета Jira
 def select_emojis(ack, payload):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     user_id = payload["user"]["id"]
     trigger_id = payload["trigger_id"]
     if my_functions.jira_connected():

@@ -3,6 +3,7 @@ import custom_messages
 import my_functions
 from datetime import datetime
 from my_db import db
+import logging
 
 
 #получаем id бота и Jira
@@ -21,6 +22,7 @@ def get_bot_jira_id():
         jira_id = myquery["jira_id"]
 
     return {"bot_id": bot_id, "jira_id": jira_id} #возвращает словарь, содержащий id бота и id Jira (если есть)
+
 
 #ивент - отправлено сообщение
 def message(payload):
@@ -83,7 +85,7 @@ def reaction_added(payload):
             limit=1)["messages"][0]
 
 
-        collection_reactions = db["reactions"]
+        collection_reactions = db.get_db()["reactions"]
         if my_functions.jira_connected() and my_functions.check_permission(reaction_user_id) and collection_reactions.find({"emoji": reaction}): #если Jira подключена, пользователь обладает правами по изменению статуса тикета Jira и его реакция соответствует какому-либо статусу тикета Jira
             import my_jira
             #если это сообщение самого пользователя в канале
@@ -140,7 +142,7 @@ def reaction_added(payload):
 
                 #обновление статистики в базе данных
                 today = str(datetime.today().date())
-                myquery = db["time"].find_one()
+                myquery = db.get_db()["time"].find_one()
                 if myquery:
                     day = myquery["day"]
                     if day == today: #проверка на дату, так как статистика обнуляется с каждым новым днем
@@ -149,19 +151,18 @@ def reaction_added(payload):
                         time_to_finish += myquery["time_to_finish"]
                         tickets_finished += myquery["tickets_finished"]
                         newvalues = { "$set": {"day": today, "time_to_start": time_to_start, "tickets_started": tickets_started, "time_to_finish": time_to_finish, "tickets_finished": tickets_finished} }
-                        db["time"].update_one(myquery, newvalues)
+                        db.get_db()["time"].update_one(myquery, newvalues)
                     else:
-                        db["time"].update_one(myquery, { "$set": {"day": today, "time_to_start": time_to_start, "tickets_started": tickets_started, "time_to_finish": time_to_finish, "tickets_finished": tickets_finished} })
+                        db.get_db()["time"].update_one(myquery, { "$set": {"day": today, "time_to_start": time_to_start, "tickets_started": tickets_started, "time_to_finish": time_to_finish, "tickets_finished": tickets_finished} })
                 else:
-                    db["time"].insert_one({"day": today, "time_to_start": time_to_start, "tickets_started": tickets_started, "time_to_finish": time_to_finish, "tickets_finished": tickets_finished})
+                    db.get_db()["time"].insert_one({"day": today, "time_to_start": time_to_start, "tickets_started": tickets_started, "time_to_finish": time_to_finish, "tickets_finished": tickets_finished})
                 
 
-                return "New status have been successfully applied"
+                return logging.debug("New status have been successfully applied")
             else:
-                return "Status did not change"
-    except:
-        # print("User reacted to wrong message or some error occurred") 
-        return "User reacted to wrong message or some error occurred" #пустые значения ключа тикета и создателя тикета вызвали ошибку
+                return logging.debug("Status did not change")
+    except: 
+        return logging.debug("User reacted to wrong message or some error occurred") #пустые значения ключа тикета и создателя тикета вызвали ошибку
 
 
 #ивент - открыта вкладка home
@@ -203,4 +204,3 @@ def app_uninstalled(payload):
     #удаление данных из базы для этого рабочего пространства
     team_id = get_client().api_call("auth.test")["team_id"]
     db.get_cluster().drop_database(team_id)
-    # cluster["access_tokens"].drop_collection(TEAM_ID)

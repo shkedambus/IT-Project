@@ -17,7 +17,8 @@ class Config:
         if self.bot_token:
             return self.bot_token 
 
-        bot_token = os.environ["BOT_TOKEN"]
+        bot_token = "xoxb-3266461516770-3266456316915-TVYucop4kqTwlbkMiWzGc9zc"
+        # bot_token = os.environ["BOT_TOKEN"]
         if not bot_token:
             logging.error("Bot token not found in env vars")
             exit(1)
@@ -28,7 +29,8 @@ class Config:
         if self.sign_secret:
             return self.sign_secret 
 
-        sign_secret = os.environ["SIGNING_SECRET"]
+        sign_secret = "bd15c9c55a788697c30dcf31911770ab"
+        # sign_secret = os.environ["SIGNING_SECRET"]
         if not sign_secret:
             logging.error("Signing secret not found in env vars")
             exit(1)
@@ -39,7 +41,8 @@ class Config:
         if self.app_token:
             return self.app_token 
 
-        app_token = os.environ["APP_TOKEN"]
+        app_token = "xapp-1-A037DRCS04F-4331742836259-5e05ca3d759afa12dedb46a045027aff789725ba3ceb19822e9ada48d14360de"
+        # app_token = os.environ["APP_TOKEN"]
         if not app_token:
             logging.error("App token not found in env vars")
             exit(1)

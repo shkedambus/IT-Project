@@ -32,15 +32,16 @@ def initialize_jira():
     myquery = db.get_db()["jira"].find_one()
     domain = myquery["domain"]
     api_key = myquery["api_key"]
-    email = myquery["email"]
+    user_email = myquery["email"]
     project = myquery["project"]
     url = "https://" + domain + ".atlassian.net"
 
     
     global jira_options, jira, jql
     jira_options = {"server": url}
-    jira = JIRA(options=jira_options, basic_auth=(email, api_key))
+    jira = JIRA(options=jira_options, basic_auth=(user_email, api_key))
     jql = "project = " + project
+    return jira
     
 
 #создать тикет
@@ -82,8 +83,6 @@ def get_all_statuses():
     transitions = jira.transitions(issue)
     statuses = []
     indeterminate_statuses = []
-    # for transition in transitions:
-    #     statuses.append({"transition_id": transition["id"], "transition_name": transition["name"], "transition_value": transition["to"]["statusCategory"]["key"]})
     for transition in transitions:
         if transition["to"]["statusCategory"]["key"] == "new":
             statuses.append({"transition_id": transition["id"], "transition_name": transition["name"], "transition_value": "new"})
@@ -110,16 +109,50 @@ def get_all_summaries():
     return summaries
 
 
+#получить Jira accountID пользователя
+def get_account_id(email):
+    import requests
+    from requests.auth import HTTPBasicAuth
+
+    myquery = db.get_db()["jira"].find_one()
+    domain = myquery["domain"]
+    api_key = myquery["api_key"]
+
+    url = "https://" + domain + ".atlassian.net/rest/api/3/user/search?query=" + email
+
+    auth = HTTPBasicAuth(email, api_key)
+
+    headers = {
+        "Accept": "application/json"
+    }
+
+    query = {
+        'email': 'donskoydmv@gmail.com'
+    }
+
+    response = requests.request(
+        "GET",
+        url,
+        headers=headers,
+        params=query,
+        auth=auth
+    )
+
+    account_id = response.json()[0]["accountId"]
+    return account_id
+
+
 #изменить статус тикета
 def change_status(key, status, user):
     initialize_jira()
-    issue = jira.issue(key)
-    jira.assign_issue(issue, user)
+    # issue = jira.issue(key)
+    # account_id = get_account_id(email=user)
+    # jira.assign_issue(issue, user)
     return jira.transition_issue(key, status)
 
 
 def miha_test_issue():
-    # initialize_jira()
+    initialize_jira()
     issues_list = get_all_tickets()
     if issues_list:
         statuses = get_all_statuses()
@@ -155,10 +188,6 @@ def get_ticket_assignee(key):
     issue = jira.issue(key)
     assignee = str(issue.fields.assignee)
     return assignee
-    # if assignee:
-    #     return assignee
-    # else:
-    #     return "Unassigned"
 
 
 #достать название тикета

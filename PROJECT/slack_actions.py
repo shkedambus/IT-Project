@@ -6,7 +6,7 @@ from datetime import datetime
 
 #получить оценку пользователя об удовлетворенностью работой над тикетом Jira
 def static_select_rating(ack, body, logger):
-    ack() #метод ack(), используемый в этом и во всех дальнейших прослушивателях действий, требуется для подтверждения того, что запрос был получен от Slack
+    ack() #подтвердить, что запрос был получен от Slack
     today = str(datetime.today().date())
 
 
@@ -24,6 +24,6 @@ def static_select_rating(ack, body, logger):
 
 #кнопка для выбора промежутка времени, после которого тикеты будут требовать обновления
 def select_time_action(ack, body, logger):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     trigger_id = body["trigger_id"]
     return get_client().views_open(trigger_id=trigger_id, view=custom_messages.select_time_view) #запускается view для выбора промежутка времени

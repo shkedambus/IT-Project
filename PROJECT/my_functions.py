@@ -8,32 +8,17 @@ from slack_client import get_client
 
 #проверить домена и api токен Jira
 def check_connection(domain, api_token, user_email):
-    import requests
-    from requests.auth import HTTPBasicAuth
-    url = "https://" + domain + ".atlassian.net/rest/api/3/project"
-    auth = HTTPBasicAuth(user_email, api_token)
-    headers = {
-        "Accept": "application/json"
-    }
     try:
-        response = requests.request(
-            "GET",
-            url,
-            headers=headers,
-            auth=auth
-        )
-        if response.status_code == 200:
-            return True
-        else:
-            return False
+        from my_jira import get_all_projects
+        projects = get_all_projects(domain=domain, api_token=api_token, user_email=user_email)
+        return projects
     except:
-        return False
+        return []
 
 
 #проверить, подключена ли Jira
 def jira_connected():
-    from main import db
-    return "jira" in db.list_collection_names() #возвращает True, если Jira подключена, иначе - False
+    return "jira" in my_db.db.get_db().list_collection_names() #возвращает True, если Jira подключена, иначе - False
 
 
 #добавление стандартных реакций при подключении Jira к боту
@@ -55,8 +40,7 @@ def configure_reactions():
 
 #проверить пользователя на право изменения тикета Jira
 def check_permission(user_id):
-    from main import db
-    return db["users"].find_one({"user": user_id})["has_permission"] #возвращает True, если пользователь обладает правом на изменение тикета Jira, иначе - False
+    return my_db.db.get_db()["users"].find_one({"user": user_id})["has_permission"] #возвращает True, если пользователь обладает правом на изменение тикета Jira, иначе - False
 
 
 #найти id пользователя по его имени
@@ -80,23 +64,24 @@ def get_channel():
     return channel_id #возвращает id канала
 
 
+#удалить приветствие из сообщения
+def cut_hellos(words):
+    hellos_list = ["привет", "здравствуй", "здравствуйте", "hi", "hello"] #список приветствий
+    first_word = words[0]
+    if "," in first_word or "." in first_word or "!" in first_word:
+        first_word = first_word[:len(first_word) - 1]
+    if first_word.lower() in hellos_list:
+        return words[1:]
+    return words
+
+
 #обрезать сообщение пользователя для названия тикета в Jira
 def cut_to_summary(text):
     text = str(text)
     text_list = text.split()
-    # hellos = ["привет", "здравствуй", "hey", "hi", "hello"] #список слов, которые нужно убрать (например: чтобы убрать "привет" в сообщении "привет! ничего не работает")
-    # new_text_list = []
-    # for word in text_list:
-    #     for hello in hellos:
-    #         if hello in word.lower():
-    #             new_text_list.append(word)
-    #             break
-    # for word in new_text_list:
-    #     text_list.remove(word)
-
-
+    text_list_without_hellos = cut_hellos(text_list)
     how_many_words = 6
-    summary = " ".join(text_list[:how_many_words])
+    summary = " ".join(text_list_without_hellos[:how_many_words])
     return summary #возвращает summary тикета Jira (название тикета)
 
 

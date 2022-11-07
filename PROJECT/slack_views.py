@@ -6,16 +6,16 @@ from my_db import db, update_db
 
 #view для первого этапа подключения Jira к боту (ввод доменного имя и api ключа Jira)
 def jira_1(ack, body, view, logger):
+    ack() #подтвердить, что запрос был получен от Slack
     trigger_id = body["trigger_id"]
     user_id = body["user"]["id"]
     user_email = get_client().users_info(user=user_id)["user"]["profile"]["email"]
     domain = view["state"]["values"]["domain"]["domain"]["value"]
     api_token = view["state"]["values"]["api"]["api"]["value"]
-    ack()
-    if my_functions.check_connection(domain=domain, api_token=api_token, user_email=user_email):
-        import my_jira
-        projects = my_jira.get_all_projects(domain=domain, api_token=api_token, user_email=user_email)
-        db["temp"].insert_one({"domain": domain, "api_key": api_token, "email": user_email})
+    connection = my_functions.check_connection(domain=domain, api_token=api_token, user_email=user_email)
+    if connection:
+        projects = connection
+        db.get_db()["temp"].insert_one({"domain": domain, "api_key": api_token, "email": user_email})
         return get_client().views_open(trigger_id=trigger_id, view=custom_messages.connect_jira_shortcut_2(projects)) #запускает view для второго этапа подключения Jira к боту
     else:
         return get_client().views_open(trigger_id=trigger_id, view=custom_messages.show_result(text=":warning: Wrong Jira domain name or API token.")) #показывает ошибку, если доменное имя или api токен недействительны
@@ -23,15 +23,15 @@ def jira_1(ack, body, view, logger):
 
 #view для второго этапа подключения Jira к боту (выбор проекта Jira и канала для обработки обращений)
 def jira_2(ack, body, view, logger):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     trigger_id = body["trigger_id"]
     user_id = body["user"]["id"]
     selected_project = view["state"]["values"]["static-select-action"]["static_select-action"]["selected_option"]["value"]
-    myquery = db["temp"].find_one()
+    myquery = db.get_db()["temp"].find_one()
     domain = myquery["domain"]
     api_key = myquery["api_key"]
     email = myquery["email"]
-    db["temp"].drop()
+    db.get_db()["temp"].drop()
     update_db("jira", {"domain": domain, "api_key": api_key, "email": email, "project": selected_project}, False)
 
 
@@ -53,16 +53,14 @@ def jira_2(ack, body, view, logger):
 
 #view для третьего этапа подключения Jira к боту (выбор пользователей, которые могут изменять статус тикета Jira)
 def jira_3(ack, body, view, logger):
-    ack()
-
-
+    ack() #подтвердить, что запрос был получен от Slack
     my_functions.configure_reactions()
     selected_users = view["state"]["values"]["multi_users_select-action"]["multi_users_select-action"]["selected_users"] #список выбранных пользователей
     all_users = get_client().users_list()["members"] #список всех пользователей
     newvalues = []
     for object in all_users:
         user = object["id"]
-        myquery = db["users"].find_one({"user": user})
+        myquery = db.get_db()["users"].find_one({"user": user})
         if user in selected_users:
             #выдача прав пользователям, которые были выбраны
             if not get_client().users_info(user=user)["user"]["is_bot"] and not user == "USLACKBOT":  #если пользователь не бот
@@ -85,8 +83,7 @@ def jira_3(ack, body, view, logger):
 
 #view для получения эмодзи пользователя
 def user_emoji(ack, body, view, logger):
-    ack()
-    # user_id = body["user"]["id"]
+    ack() #подтвердить, что запрос был получен от Slack
     trigger_id = body["trigger_id"]
     slack_emojis = my_functions.slack_emojis() #берем список всех эмодзи Slack из файла my_functions.py
     custom_emojis = list(get_client().emoji_list()["emoji"].keys()) #берем список всех пользовательских эмодзи Slack
@@ -111,24 +108,24 @@ def user_emoji(ack, body, view, logger):
             return get_client().views_open(trigger_id=trigger_id, view=custom_messages.show_result(text=f':warning: Invalid input\nEmoji "{emoji}" does not exist')) #вывод сообщения об ошибке (недействительный эмодзи)
     update_db("reactions", data, True)
     get_client().views_open(trigger_id=trigger_id, view=custom_messages.show_result(text="All changes have been successfully applied!")) #вывод сообщения, что все изменения были успешно применены
-    users = db["users"].find({"has_permission": True}).distinct("user")
+    users = db.get_db()["users"].find({"has_permission": True}).distinct("user")
     for user in users: #уведомление каждого пользователя, обладающего правами по изменению статуса тикета Jira, об изменении эмодзи для статусов тикетов Jira
         my_functions.user_reactions(user, True)
 
 
 #view для выбора промежутка времени
 def select_time_view(ack, body, view, logger):
-    ack()
+    ack() #подтвердить, что запрос был получен от Slack
     user_id = body["user"]["id"]
     trigger_id = body["trigger_id"]
     try:
         #получение данных о пользователе и выбранном промежутке времени
         hours = int(view["state"]["values"]["select-time"]["select-time"]["value"])
-        myquery = db["users"].find_one({"user": user_id})
+        myquery = db.get_db()["users"].find_one({"user": user_id})
         email = myquery["email"]
         has_permission = myquery["has_permission"]
         newvalues = { "$set": {"user": user_id, "email": email, "notification": hours, "has_permission": has_permission} }
-        db["users"].update_one(myquery, newvalues) #обновление базы данных
+        db.get_db()["users"].update_one(myquery, newvalues) #обновление базы данных
         return get_client().views_open(trigger_id=trigger_id, view=custom_messages.show_result(text="All changes have been successfully applied!")) #все изменения были успешно применены
     except:
         return get_client().views_open(trigger_id=trigger_id, view=custom_messages.show_result(text=":warning: Invalid input.")) #пользователь ввел недействительные данные

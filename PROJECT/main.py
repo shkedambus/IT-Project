@@ -20,15 +20,14 @@ BOT_TOKEN = config.get_bot_token()
 SIGNING_SECRET = config.get_sign_secret()
 APP_TOKEN = config.get_app_token()
 
-logging.debug("tokens: ", BOT_TOKEN, SIGNING_SECRET, APP_TOKEN)
+logging.debug("tokens: {}, {}, {}".format(BOT_TOKEN, SIGNING_SECRET, APP_TOKEN))
+
 
 app = App(
     token=BOT_TOKEN,
     signing_secret=SIGNING_SECRET
 )
 client = get_client()
-
-
 
 
 def form_user_collection():
@@ -124,29 +123,24 @@ def static_select_rating(ack, body, logger):
 
 @app.action("select-time")
 def select_time_action(ack, body, logger):
-    return select_time_action(ack, body, logger)
+    return slack_actions.select_time_action(ack, body, logger)
 
 @app.action("static_select-action")
 def static_select_action(ack, body, logger):
     ack()
-    print("static_select_action")
+    logging.debug("static_select_action")
     return
 
 @app.action("multi_conversations_select-action")
 def multi_conversations_select_action(ack, body, logger):
     ack()
-    print("multi_conversations_select_action")
+    logging.debug("multi_conversations_select_action")
     return
 
 @app.action("multi_users_select-action")
 def multi_users_select_action(ack, body, logger):
     ack()
-    print("multi_users_select_action")
-    return
-
-@app.message("message")
-def test_message(message):
-    logging.error("Got a message")
+    logging.debug("multi_users_select_action")
     return
 
 
@@ -156,6 +150,5 @@ if __name__ == "__main__":
 
     long_thread = threading.Thread(target=send_daily_stats) #запуск ядра, которое будет ежедневно отправлять статистику по обработке тикетов Jira
     long_thread.start()
-    #app.start(port=int(os.environ.get("PORT", 8000)))
     handler = SocketModeHandler(app, APP_TOKEN)
     handler.start()
